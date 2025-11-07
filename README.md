@@ -31,5 +31,6 @@ DATA:       0ZZZ ZZZZ 0ZZZ ZZZZ
 OPCODES:
 DD00 YYYY   STATUS, where YYYY:
                 0000 - SYNC command, aka keep alive
-DD01 YYYY   DISPENSE from machine YYYY
+DD01 YYYY   DISPENSE, where YYYY:
+                [0, 3] - Dispenser index
 ```
