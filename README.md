@@ -26,7 +26,6 @@ Serialized messages are received by the EV3 over the UART:
 DIRECTION:  DD, where command is 10 and response is 11
 OPCODE:     DDXX
 IMMEDIATE:  YYYY
-DATA:       0ZZZ ZZZZ 0ZZZ ZZZZ
 
 OPCODES:
 DD00 YYYY   STATUS, where YYYY:
