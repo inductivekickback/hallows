@@ -1,0 +1,14 @@
+config BT_HALLOWS_CLIENT
+	bool "Hallows service client"
+	select BT_GATT_DM
+	select BT_GATT_CLIENT
+	help
+	 Enable GATT Hallows client
+
+if BT_HALLOWS_CLIENT
+
+module = BT_HALLOWS_CLIENT
+module-str = Hallows Client
+source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
+
+endif # BT_HALLOWS_CLIENT

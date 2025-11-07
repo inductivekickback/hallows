@@ -1,0 +1,29 @@
+/ {
+    leds {
+		compatible = "gpio-leds";
+        led4: led_4 {
+            gpios = <&gpio0 26 GPIO_ACTIVE_HIGH>;
+            label = "Green LED on antenna";
+        };
+        led5: led_5 {
+            gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>;
+            label = "Blue LED on antenna";
+        };
+        led6: led_6 {
+            gpios = <&gpio0 28 GPIO_ACTIVE_HIGH>;
+            label = "Red LED in box";
+        };
+        led7: led_7 {
+            gpios = <&gpio0 29 GPIO_ACTIVE_HIGH>;
+            label = "Green LED in box";
+        };
+        led8: led_8 {
+            gpios = <&gpio0 30 GPIO_ACTIVE_HIGH>;
+            label = "Blue LED in box";
+        };
+        led9: led_9 {
+            gpios = <&gpio0 31 GPIO_ACTIVE_HIGH>;
+            label = "Red LED on antenna";
+        };
+	};
+};

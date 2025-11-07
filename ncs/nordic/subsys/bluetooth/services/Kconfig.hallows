@@ -1,0 +1,12 @@
+config BT_HALLOWS
+	bool "Hallows service"
+	help
+	 Enable GATT Hallows BLE service
+
+if BT_HALLOWS
+
+module = BT_HALLOWS
+module-str = HALLOWS
+source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
+
+endif # BT_HALLOWS
