@@ -14,7 +14,7 @@
 
 A simple BLE service and client are used to exchange data between a <a href="https://inductivekickback.blogspot.com/2021/11/halloween-2021.html">remote control (central) and a candy machine (peripheral)</a>. The remote sends a single ASCII byte, ['1', '2', '3', '4'], to select the candy to be dispensed.
 
-## UART interface to Lego Mindstorms ev3
+## UART interface to EV3
 
 The nRF52840 communicates with the EV3 via two UART pins, through the level shifter, using 115200 8n1 baud rate.
 
@@ -22,12 +22,14 @@ Serialized messages are received by the EV3 over the UART:
  - Messages have a fixed len of one byte.
  - All messages start with a byte that has the leading bit set.
 
+```
 DIRECTION:  DD, where command is 10 and response is 11
 OPCODE:     DDXX
 IMMEDIATE:  YYYY
 DATA:       0ZZZ ZZZZ 0ZZZ ZZZZ
 
 OPCODES:
-DD00 YYYY   STATUS, DATA bytes ignored, where YYYY:
+DD00 YYYY   STATUS, where YYYY:
                 0000 - SYNC command, aka keep alive
-DD01 YYYY   DISPENSE from machine YYYY, DATA bytes ignored
+DD01 YYYY   DISPENSE from machine YYYY
+```
