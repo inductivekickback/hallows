@@ -1,8 +1,14 @@
 
+# Hallows
+<img src="https://github.com/user-attachments/assets/51678149-e550-4142-bbdb-fc4d3716662a" align="right" width="300" style="margin-right: 15px; margin-bottom: 15px;">
 
-<p align="center">
-<img src="https://github.com/user-attachments/assets/51678149-e550-4142-bbdb-fc4d3716662a" width="400">
-</p>
+<p>The release of [excellent MicroPython tooling](https://education.lego.com/en-us/product-resources/mindstorms-ev3/teacher-resources/python-for-ev3/) for the [Lego Mindstorms EV3](https://en.wikipedia.org/wiki/Lego_Mindstorms_EV3) was clearly the peak of one of my favorite toys, followed a few years later by Lego discontuining the line completely. Along with a [Visual Studio Code plugin](https://marketplace.visualstudio.com/items?itemName=lego-education.ev3-micropython) that allows for interactive debugging the brick also gained proper support for [UART](https://en.wikipedia.org/wiki/Universal_asynchronous_receiver-transmitter). This project demonstrates a relatively simple way to expand the capabilities of EV3 using the popular [Nordic nRF52840 SoC](https://docs.nordicsemi.com/category/nrf52840-category).</p>
+
+## Interface
+The dongle
+
+
+
 
 <p align="center">
 <img src="https://github.com/user-attachments/assets/6ddd7d79-e573-403b-bebd-4bd6e162c690" width="200">
@@ -14,7 +20,7 @@
 
 
 
-## BLE Interface
+### BLE Interface
 
 Candy dispenser:
     [W] Dispense from index '1', '2', '3', or '4'
