@@ -1,11 +1,8 @@
-
-# Hallows
 <img src="https://github.com/user-attachments/assets/51678149-e550-4142-bbdb-fc4d3716662a" align="right" width="300" style="margin-right: 15px; margin-bottom: 15px;">
 
-<p>The release of <a href="https://education.lego.com/en-us/product-resources/mindstorms-ev3/teacher-resources/python-for-ev3/">excellent MicroPython tooling</a> for the <a href="https://en.wikipedia.org/wiki/Lego_Mindstorms_EV3">Lego Mindstorms EV3</a> was clearly the peak of one of my favorite toys, followed a few years later by Lego discontuining the line completely. Along with a <a href="https://marketplace.visualstudio.com/items?itemName=lego-education.ev3-micropython">Visual Studio Code plugin</a> that allows for interactive debugging the brick also gained proper support for <a href="https://en.wikipedia.org/wiki/Universal_asynchronous_receiver-transmitter">UART</a>. This project demonstrates a relatively simple way to expand the capabilities of EV3 using the popular <a href="https://docs.nordicsemi.com/category/nrf52840-category">Nordic nRF52840 SoC</a>.</p>
+<p>The release of <a href="https://education.lego.com/en-us/product-resources/mindstorms-ev3/teacher-resources/python-for-ev3/">excellent MicroPython tooling</a> for the <a href="https://en.wikipedia.org/wiki/Lego_Mindstorms_EV3">Lego Mindstorms EV3</a> was clearly the peak of the evolution of one of my favorite toys, followed a few years later by Lego discontuining the line completely. Along with a <a href="https://marketplace.visualstudio.com/items?itemName=lego-education.ev3-micropython">Visual Studio Code plugin</a> that allows for interactive debugging the brick also gained proper support for <a href="https://en.wikipedia.org/wiki/Universal_asynchronous_receiver-transmitter">UART</a> communications. This project demonstrates a relatively simple way to expand the capabilities of EV3 using the popular <a href="https://docs.nordicsemi.com/category/nrf52840-category">Nordic nRF52840 SoC</a>.</p>
 
-## Interface
-The dongle
+<p>The <a href="https://docs.nordicsemi.com/bundle/ug_nrf52840_dongle/page/UG/nrf52840_Dongle/intro.html">nRF52840 dongle</a> is inexpensive, breadboard-friendly, and can use the nRF52840's onboard regulator to run from ~5V.</p>
 
 
 
