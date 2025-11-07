@@ -1,6 +1,17 @@
-# Hallows
 
-- A BLE remote control that connects to a Lego NXT candy dispenser
+
+<p align="center">
+<img src="https://github.com/user-attachments/assets/51678149-e550-4142-bbdb-fc4d3716662a" width="400">
+</p>
+
+<p align="center">
+<img src="https://github.com/user-attachments/assets/6ddd7d79-e573-403b-bebd-4bd6e162c690" width="200">
+</p>
+
+
+![Image](https://github.com/user-attachments/assets/c12f04bf-3a4c-46c1-946e-bec4b67d823e)
+
+
 
 
 ## BLE Interface
