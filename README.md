@@ -5,10 +5,9 @@
 <p align="center">
 <img src="https://github.com/user-attachments/assets/6ddd7d79-e573-403b-bebd-4bd6e162c690" width="200">
 </p>
-<p>The WHITE wire from the EV3 is not used. Tying the RED and BLACK wires together forms GND. Then the 5V from the EV3 (GREEN wire) is fed into the dongle's "VBUS" pin and the the output from the dongle's "VDD OUT" is used to run the nRF52840 and its peripherals. The level shifter translates the UART RX (BLUE wire) and TX (YELLOW wire) between the two devices:</p><br>
+<p>The WHITE wire from the EV3 is not used. Tying the RED and BLACK wires together forms GND. Then the 5V from the EV3 (GREEN wire) is fed into the dongle's "VBUS" pin and the the output from the dongle's "VDD OUT" is used to run the nRF52840 and its peripherals. The level shifter translates the UART RX (BLUE wire) and TX (YELLOW wire) between the two devices.</p><br>
 
-![Image](https://github.com/user-attachments/assets/c12f04bf-3a4c-46c1-946e-bec4b67d823e)
-<br><br>
+<img width="600" height="200" alt="Image" src="https://github.com/user-attachments/assets/1b165218-8f87-4245-b3c0-99d8c4b0b813" />
 
 ### BLE Interface
 
