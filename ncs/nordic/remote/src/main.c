@@ -40,12 +40,9 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #define CMD_WAIT_MS       1000
 #define CMD_Q_LEN         10
 
-static const struct led_dt_spec led_g_ant = LED_DT_SPEC_GET(DT_NODELABEL(led4));
-static const struct led_dt_spec led_b_ant = LED_DT_SPEC_GET(DT_NODELABEL(led5));
-static const struct led_dt_spec led_r_box = LED_DT_SPEC_GET(DT_NODELABEL(led6));
-static const struct led_dt_spec led_g_box = LED_DT_SPEC_GET(DT_NODELABEL(led7));
-static const struct led_dt_spec led_b_box = LED_DT_SPEC_GET(DT_NODELABEL(led8));
-static const struct led_dt_spec led_r_ant = LED_DT_SPEC_GET(DT_NODELABEL(led9));
+static const struct led_dt_spec led_r_lw = LED_DT_SPEC_GET(DT_NODELABEL(led0));
+static const struct led_dt_spec led_g_lw = LED_DT_SPEC_GET(DT_NODELABEL(led1));
+static const struct led_dt_spec led_b_lw = LED_DT_SPEC_GET(DT_NODELABEL(led2));
 
 K_MSGQ_DEFINE(cmd_msgq, sizeof(uint8_t), CMD_Q_LEN, sizeof(uint8_t));
 
@@ -116,7 +113,7 @@ static void connected(struct bt_conn *conn, uint8_t conn_err)
     char addr[BT_ADDR_LE_STR_LEN];
     int err;
 
-    led_on_dt(&led_b_ant);
+    led_on_dt(&led_b_lw);
 
     bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
@@ -148,7 +145,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
     char addr[BT_ADDR_LE_STR_LEN];
 
-    led_off_dt(&led_b_ant);
+    //led_off_dt(&led_b_ant);
 
     bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
@@ -295,28 +292,28 @@ void cmd_thread(void)
     uint8_t msg;
     for(;;) {
         k_msgq_get(&cmd_msgq, &msg, K_FOREVER);
-        led_off_dt(&led_b_ant);
-        led_off_dt(&led_r_ant);
+        //led_off_dt(&led_b_ant);
+        //led_off_dt(&led_r_ant);
         switch(msg) {
         case '0':
-            led_on_dt(&led_r_box);
-            led_on_dt(&led_r_ant);
+            //led_on_dt(&led_r_box);
+            //led_on_dt(&led_r_ant);
             break;
         case '1':
-            led_on_dt(&led_g_box);
-            led_on_dt(&led_g_ant);
+            //led_on_dt(&led_g_box);
+            //led_on_dt(&led_g_ant);
             break;
         case '2':
-            led_on_dt(&led_b_box);
-            led_on_dt(&led_b_ant);
+            //led_on_dt(&led_b_box);
+            //led_on_dt(&led_b_ant);
             break;
         case '3':
-            led_on_dt(&led_r_box);
-            led_on_dt(&led_g_box);
-            led_on_dt(&led_b_box);
-            led_on_dt(&led_r_ant);
-            led_on_dt(&led_g_ant);
-            led_on_dt(&led_b_ant);
+            //led_on_dt(&led_r_box);
+            //led_on_dt(&led_g_box);
+            //led_on_dt(&led_b_box);
+            //led_on_dt(&led_r_ant);
+            //led_on_dt(&led_g_ant);
+            //led_on_dt(&led_b_ant);
             break;
         };
 
@@ -332,30 +329,30 @@ void cmd_thread(void)
         k_sleep(K_MSEC(CMD_WAIT_MS));
         switch(msg) {
         case '0':
-            led_off_dt(&led_r_box);
-            led_off_dt(&led_r_ant);
+            //led_off_dt(&led_r_box);
+            //led_off_dt(&led_r_ant);
             break;
         case '1':
-            led_off_dt(&led_g_box);
-            led_off_dt(&led_g_ant);
+            //led_off_dt(&led_g_box);
+            //led_off_dt(&led_g_ant);
             break;
         case '2':
-            led_off_dt(&led_b_box);
-            led_off_dt(&led_b_ant);
+            //led_off_dt(&led_b_box);
+            //led_off_dt(&led_b_ant);
             break;
         case '3':
-            led_off_dt(&led_r_box);
-            led_off_dt(&led_g_box);
-            led_off_dt(&led_b_box);
-            led_off_dt(&led_r_ant);
-            led_off_dt(&led_g_ant);
-            led_off_dt(&led_b_ant);
+            //led_off_dt(&led_r_box);
+            //led_off_dt(&led_g_box);
+            //led_off_dt(&led_b_box);
+            //led_off_dt(&led_r_ant);
+            //led_off_dt(&led_g_ant);
+            //led_off_dt(&led_b_ant);
             break;
         };
         if (default_conn != NULL) {
-            led_on_dt(&led_b_ant);
+            //led_on_dt(&led_b_ant);
         }
-        led_on_dt(&led_r_ant);
+        //led_on_dt(&led_r_ant);
     }
 }
 
@@ -373,24 +370,24 @@ static void button_changed(uint32_t button_state, uint32_t has_changed)
 
 static int leds_init(void)
 {
-    if (!device_is_ready(led_g_ant.dev)) {
-        return -1;
-    }
-    if (!device_is_ready(led_b_ant.dev)) {
-        return -1;
-    }
-    if (!device_is_ready(led_r_box.dev)) {
-        return -1;
-    }
-    if (!device_is_ready(led_g_box.dev)) {
-        return -1;
-    }
-    if (!device_is_ready(led_b_box.dev)) {
-        return -1;
-    }
-    if (!device_is_ready(led_r_ant.dev)) {
-        return -1;
-    }
+    //if (!device_is_ready(led_g_ant.dev)) {
+    //    return -1;
+    //}
+    //if (!device_is_ready(led_b_ant.dev)) {
+    //    return -1;
+    //}
+    //if (!device_is_ready(led_r_box.dev)) {
+    //    return -1;
+    //}
+    //if (!device_is_ready(led_g_box.dev)) {
+    //    return -1;
+    //}
+    //if (!device_is_ready(led_b_box.dev)) {
+    //    return -1;
+    //}
+    //if (!device_is_ready(led_r_ant.dev)) {
+    //    return -1;
+    //}
     return 0;
 }
 
@@ -406,7 +403,9 @@ int main(void)
         return 0;
     }
 
-    led_on_dt(&led_r_ant);
+    led_on_dt(&led_r_lw);
+
+    return 0;
 
     err = dk_leds_init();
     if (err) {
