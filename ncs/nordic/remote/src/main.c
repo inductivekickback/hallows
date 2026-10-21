@@ -390,8 +390,6 @@ int main(void)
         return 0;
     }
 
-    led_on_dt(&led_g_lw);
-
     err = bt_enable(NULL);
     if (err) {
         printk("Bluetooth init failed (err %d)\n", err);
@@ -415,6 +413,8 @@ int main(void)
     if (err) {
         return 0;
     }
+
+    led_on_dt(&led_g_lw);
 }
 
 K_THREAD_DEFINE(cmd_thread_id, 1024, cmd_thread, NULL, NULL, NULL, -1, 0, 0);

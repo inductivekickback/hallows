@@ -4,3 +4,23 @@
     anym-on-int1;
     anym-no-latch;
 };
+
+&lps22hb_press {
+    status = "disabled";
+};
+
+&hts221 {
+    status = "disabled";
+};
+
+&ccs811 {
+    status = "disabled";
+};
+
+&spk_pwr {
+    status = "disabled";
+};
+
+&uart0 {
+    status = "disabled";
+};
