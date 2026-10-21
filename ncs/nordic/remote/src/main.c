@@ -378,41 +378,12 @@ static void button_changed(uint32_t button_state, uint32_t has_changed)
     }
 }
 
-static int leds_init(void)
-{
-    //if (!device_is_ready(led_g_ant.dev)) {
-    //    return -1;
-    //}
-    //if (!device_is_ready(led_b_ant.dev)) {
-    //    return -1;
-    //}
-    //if (!device_is_ready(led_r_box.dev)) {
-    //    return -1;
-    //}
-    //if (!device_is_ready(led_g_box.dev)) {
-    //    return -1;
-    //}
-    //if (!device_is_ready(led_b_box.dev)) {
-    //    return -1;
-    //}
-    //if (!device_is_ready(led_r_ant.dev)) {
-    //    return -1;
-    //}
-    return 0;
-}
-
 int main(void)
 {
     int err;
 
     printk("Starting Hallows remote\n");
-
-    err = leds_init();
-    if (err) {
-        printk("LEDs init failed (err %d)\n", err);
-        return 0;
-    }
-
+ 
     err = motion_init(motion_cb);
     if (err) {
         led_on_dt(&led_r_lw);
@@ -420,20 +391,6 @@ int main(void)
     }
 
     led_on_dt(&led_g_lw);
-
-    return 0;
-
-    err = dk_leds_init();
-    if (err) {
-        printk("DK LEDs init failed (err %d)\n", err);
-        return 0;
-    }
-
-    err = dk_buttons_init(button_changed);
-    if (err) {
-        printk("Buttons init failed (err %d)\n", err);
-        return 0;
-    }
 
     err = bt_enable(NULL);
     if (err) {
