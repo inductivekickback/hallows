@@ -1,0 +1,6 @@
+&lis2dh12 {
+    int1-gpio-config = <0x03>;
+    anym-mode = <0x00>;
+    anym-on-int1;
+    anym-no-latch;
+};
