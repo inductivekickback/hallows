@@ -32,6 +32,9 @@
 
 #include <dk_buttons_and_leds.h>
 
+#include <accel.h>
+
+
 #define LOG_MODULE_NAME hallows
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
@@ -40,44 +43,9 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #define CMD_WAIT_MS       1000
 #define CMD_Q_LEN         10
 
-#include <zephyr/drivers/sensor.h>
-
 static const struct led_dt_spec led_r_lw = LED_DT_SPEC_GET(DT_NODELABEL(led0));
 static const struct led_dt_spec led_g_lw = LED_DT_SPEC_GET(DT_NODELABEL(led1));
 static const struct led_dt_spec led_b_lw = LED_DT_SPEC_GET(DT_NODELABEL(led2));
-
-static struct sensor_trigger trig = {
-    .type = SENSOR_TRIG_DELTA,
-    .chan = SENSOR_CHAN_ACCEL_XYZ,
-};
-
-static void motion_cb(const struct device *dev, const struct sensor_trigger *trig)
-{
-    led_on_dt(&led_b_lw);
-    k_sleep(K_MSEC(500));
-    led_off_dt(&led_b_lw);
-}
-
-int motion_init(void)
-{
-    const struct device *dev = DEVICE_DT_GET(DT_NODELABEL(lis2dh12));
-    if (!device_is_ready(dev)) {
-        led_on_dt(&led_r_lw);
-        return -ENODEV;
-    }
-
-    /* CTRL_REG2: HPIS1 - high-pass filter data for the INT1 any-motion interrupt */
-    struct sensor_value hp = { .val1 = BIT(0) };
-    sensor_attr_set(dev, SENSOR_CHAN_ACCEL_XYZ, SENSOR_ATTR_CONFIGURATION, &hp);
-
-    struct sensor_value th  = { .val1 = 2, .val2 = 0 };  /* m/s^2 */
-    struct sensor_value dur = { .val1 = 1, .val2 = 0 };  /* in samples */
-
-    sensor_attr_set(dev, SENSOR_CHAN_ACCEL_XYZ, SENSOR_ATTR_SLOPE_TH,  &th);
-    sensor_attr_set(dev, SENSOR_CHAN_ACCEL_XYZ, SENSOR_ATTR_SLOPE_DUR, &dur);
-
-    return sensor_trigger_set(dev, &trig, motion_cb);
-}
 
 K_MSGQ_DEFINE(cmd_msgq, sizeof(uint8_t), CMD_Q_LEN, sizeof(uint8_t));
 
@@ -85,6 +53,13 @@ static struct k_work scan_work;
 
 static struct bt_conn *default_conn;
 static struct bt_hallows_client hallows_client;
+
+static void motion_cb(const struct device *dev, const struct sensor_trigger *trig)
+{
+    led_on_dt(&led_b_lw);
+    k_sleep(K_MSEC(500));
+    led_off_dt(&led_b_lw);
+}
 
 static void ble_data_sent(uint8_t err)
 {
@@ -438,7 +413,11 @@ int main(void)
         return 0;
     }
 
-    motion_init();
+    err = motion_init(motion_cb);
+    if (err) {
+        led_on_dt(&led_r_lw);
+        return 0;
+    }
 
     led_on_dt(&led_g_lw);
 
