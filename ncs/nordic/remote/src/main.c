@@ -34,31 +34,47 @@
 
 #include <accel.h>
 
-
 #define LOG_MODULE_NAME hallows
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
-#define DK_BTN_COUNT      4
+#define DK_BTN_COUNT    4
 
-#define CMD_WAIT_MS       1000
-#define CMD_Q_LEN         10
+#define CMD_WAIT_MS     1000
+#define CMD_Q_LEN       10
+
+#define SLEEP_TIMER_S   60
 
 static const struct led_dt_spec led_r_lw = LED_DT_SPEC_GET(DT_NODELABEL(led0));
 static const struct led_dt_spec led_g_lw = LED_DT_SPEC_GET(DT_NODELABEL(led1));
 static const struct led_dt_spec led_b_lw = LED_DT_SPEC_GET(DT_NODELABEL(led2));
 
+static void sleep_expiry_function(struct k_timer *timer_id);
+static void enter_sleep(struct k_work *work);
+
+K_TIMER_DEFINE(sleep_timer, sleep_expiry_function, NULL);
 K_MSGQ_DEFINE(cmd_msgq, sizeof(uint8_t), CMD_Q_LEN, sizeof(uint8_t));
+
+K_WORK_DEFINE(sleep_work, enter_sleep);
 
 static struct k_work scan_work;
 
 static struct bt_conn *default_conn;
 static struct bt_hallows_client hallows_client;
 
+static void enter_sleep(struct k_work *work)
+{
+    led_off_dt(&led_g_lw);    
+}
+
+static void sleep_expiry_function(struct k_timer *timer_id)
+{
+    k_work_submit(&sleep_work);
+}
+
 static void motion_cb(const struct device *dev, const struct sensor_trigger *trig)
 {
-    led_on_dt(&led_b_lw);
-    k_sleep(K_MSEC(500));
-    led_off_dt(&led_b_lw);
+    led_on_dt(&led_g_lw);
+    k_timer_start(&sleep_timer, K_SECONDS(SLEEP_TIMER_S), K_FOREVER);
 }
 
 static void ble_data_sent(uint8_t err)
@@ -413,8 +429,6 @@ int main(void)
     if (err) {
         return 0;
     }
-
-    led_on_dt(&led_g_lw);
 }
 
 K_THREAD_DEFINE(cmd_thread_id, 1024, cmd_thread, NULL, NULL, NULL, -1, 0, 0);
