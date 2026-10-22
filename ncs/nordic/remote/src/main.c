@@ -12,6 +12,7 @@
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/gpio/gpio_sx1509b.h>
 #include <soc.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/led.h>
@@ -45,6 +46,19 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 static const struct led_dt_spec led_r_lw = LED_DT_SPEC_GET(DT_NODELABEL(led0));
 static const struct led_dt_spec led_g_lw = LED_DT_SPEC_GET(DT_NODELABEL(led1));
 static const struct led_dt_spec led_b_lw = LED_DT_SPEC_GET(DT_NODELABEL(led2));
+
+#define NUMBER_OF_LEDS 3
+#define RED_LED DT_GPIO_PIN(DT_NODELABEL(led0), gpios)
+#define GREEN_LED DT_GPIO_PIN(DT_NODELABEL(led1), gpios)
+#define BLUE_LED DT_GPIO_PIN(DT_NODELABEL(led2), gpios)
+
+static const gpio_pin_t rgb_pins[] = {
+    RED_LED,
+    GREEN_LED,
+    BLUE_LED,
+};
+
+static const struct device *sx1509b_dev = DEVICE_DT_GET(DT_NODELABEL(sx1509b));
 
 static void sleep_expiry_function(struct k_timer *timer_id);
 static void enter_sleep(struct k_work *work);
@@ -392,12 +406,71 @@ static void button_changed(uint32_t button_state, uint32_t has_changed)
     }
 }
 
+
+enum sx1509b_color { sx1509b_red = 0, sx1509b_green, sx1509b_blue };
+
+static struct k_work_delayable rgb_work;
+static uint8_t which_color = sx1509b_red;
+static uint8_t iterator;
+
+static void rgb_work_handler(struct k_work *work)
+{
+    if (which_color == sx1509b_red) {
+        sx1509b_led_intensity_pin_set(sx1509b_dev, RED_LED, iterator);
+
+        iterator++;
+
+        if (iterator >= 255) {
+            sx1509b_led_intensity_pin_set(sx1509b_dev, RED_LED, 0);
+            which_color = sx1509b_green;
+            iterator = 0;
+        }
+    } else if (which_color == sx1509b_green) {
+        sx1509b_led_intensity_pin_set(sx1509b_dev, GREEN_LED, iterator);
+
+        iterator++;
+
+        if (iterator >= 255) {
+            sx1509b_led_intensity_pin_set(sx1509b_dev, GREEN_LED,
+                              0);
+            which_color = sx1509b_blue;
+            iterator = 0;
+        }
+    } else if (which_color == sx1509b_blue) {
+        sx1509b_led_intensity_pin_set(sx1509b_dev, BLUE_LED, iterator);
+
+        iterator++;
+
+        if (iterator >= 255) {
+            sx1509b_led_intensity_pin_set(sx1509b_dev, BLUE_LED, 0);
+            which_color = sx1509b_red;
+            iterator = 0;
+        }
+    }
+
+    k_work_schedule(k_work_delayable_from_work(work), K_MSEC(10));
+}
+
 int main(void)
 {
     int err;
 
-    printk("Starting Hallows remote\n");
- 
+    if (!device_is_ready(sx1509b_dev)) {
+        return 0;
+    }
+
+    for (int i = 0; i < NUMBER_OF_LEDS; i++) {
+        err = sx1509b_led_intensity_pin_configure(sx1509b_dev,
+                              rgb_pins[i]);
+
+        if (err) {
+            printk("Error configuring pin for LED intensity\n");
+        }
+    }
+
+    k_work_init_delayable(&rgb_work, rgb_work_handler);
+    k_work_schedule(&rgb_work, K_NO_WAIT);
+
     err = motion_init(motion_cb);
     if (err) {
         led_on_dt(&led_r_lw);
