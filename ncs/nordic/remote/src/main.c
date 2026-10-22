@@ -30,8 +30,6 @@
 
 #include <zephyr/settings/settings.h>
 
-#include <dk_buttons_and_leds.h>
-
 #include <accel.h>
 
 #define LOG_MODULE_NAME hallows
