@@ -1,0 +1,18 @@
+# Copyright (c) 2026 Daniel Veilleux
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig SNES_GAMEPAD
+	bool "SNES gamepad device driver"
+	depends on DT_HAS_DMV_SNES_GAMEPAD_ENABLED
+	default y
+	select GPIO
+	help
+	  This option enables the SNES gamepad driver.
+
+if SNES_GAMEPAD
+
+module = SNES_GAMEPAD
+module-str = snes_gamepad
+source "subsys/logging/Kconfig.template.log_config"
+
+endif # SNES_GAMEPAD

@@ -1,0 +1,33 @@
+# Copyright (c) 2026, Daniel Veilleux
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Uses three GPIOs to read the original SNES shift-register-based gamepad
+
+  The original button names and ordering are maintained.
+
+compatible: "dmv,snes-gamepad"
+
+include: base.yaml
+
+properties:
+  polling-interval-ms:
+    type: int
+    default: 20
+    description: |
+       Polling interval time in milliseconds
+
+  latch-gpios:
+    type: phandle-array
+    required: true
+    description: Latch pin (output)
+
+  clock-gpios:
+    type: phandle-array
+    required: true
+    description: Clock pin (output)
+
+  data-gpios:
+    type: phandle-array
+    required: true
+    description: Serial data pin (input, pressed buttons read low)
