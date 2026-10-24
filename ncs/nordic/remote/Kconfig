@@ -6,12 +6,6 @@
 
 menu "BLE GATT Hallows service"
 
-configdefault INPUT
-        default y if DT_HAS_DMV_SNES_GAMEPAD_ENABLED
-
-configdefault SNES_GAMEPAD
-        default y if DT_HAS_DMV_SNES_GAMEPAD_ENABLED
-
 source "Kconfig.zephyr"
 
 config BT_HALLOWS_SECURITY_ENABLED
