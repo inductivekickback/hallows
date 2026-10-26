@@ -29,9 +29,9 @@
     snes_gamepad: snes-gamepad {
 	status = "okay";
         compatible = "dmv,snes-gamepad";
-        latch-gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
-        clock-gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
-        data-gpios  = <&gpio0 4 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+        latch-gpios = <&gpio0 2 0>;
+        clock-gpios = <&gpio0 3 0>;
+        data-gpios  = <&gpio0 4 0>;
         polling-interval-ms = <10>;
     };
 };

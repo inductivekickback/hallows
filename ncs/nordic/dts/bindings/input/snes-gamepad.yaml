@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 description: |
-  Uses three GPIOs to read the original SNES shift-register-based gamepad
+  Use three GPIOs to read the original SNES shift-register-based gamepad.
 
   The original button names and ordering are maintained.
 
@@ -20,14 +20,17 @@ properties:
   latch-gpios:
     type: phandle-array
     required: true
-    description: Latch pin (output)
-
-  clock-gpios:
-    type: phandle-array
-    required: true
-    description: Clock pin (output)
+    description: Latch pin (output). The flags are overridden in the driver
+      but must be set to 0 in the DT.
 
   data-gpios:
     type: phandle-array
     required: true
-    description: Serial data pin (input, pressed buttons read low)
+    description: Data pin (input). The flags are overridden in the driver
+      but must be set to 0 in the DT.
+
+  clock-gpios:
+    type: phandle-array
+    required: true
+    description: Clock pin (output). The flags are overridden in the driver
+      but must be set to 0 in the DT.

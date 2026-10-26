@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2022 Google LLC
+ * Copyright (c) 2026 Daniel Veilleux
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #define DT_DRV_COMPAT dmv_snes_gamepad
-pottato==
+
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/input/input.h>
@@ -14,268 +14,158 @@ pottato==
 #include <zephyr/pm/device.h>
 #include <zephyr/pm/device_runtime.h>
 #include <zephyr/sys/atomic.h>
+#include <zephyr/sys/util.h>
+
+#define SNES_GAMEPAD_WAIT_US	5
 
 LOG_MODULE_REGISTER(input_snes_gamepad, CONFIG_INPUT_LOG_LEVEL);
 
-struct gpio_keys_callback {
-	struct gpio_callback gpio_cb;
-	int8_t pin_state;
+static const uint16_t SNES_GAMEPAD_CODES[12] = {
+    INPUT_BTN_SOUTH,/* B */
+    INPUT_BTN_WEST, /* Y */
+    INPUT_BTN_SELECT,
+    INPUT_BTN_START,
+    INPUT_BTN_DPAD_UP,
+    INPUT_BTN_DPAD_DOWN,
+    INPUT_BTN_DPAD_LEFT,
+    INPUT_BTN_DPAD_RIGHT,
+    INPUT_BTN_EAST,	/* A */
+    INPUT_BTN_NORTH,/* X */
+    INPUT_BTN_TL,	/* L */
+    INPUT_BTN_TR,	/* R */
 };
 
-struct gpio_keys_pin_config {
-	/** GPIO specification from devicetree */
-	struct gpio_dt_spec spec;
-	/** Zephyr code from devicetree */
-	uint32_t zephyr_code;
+struct snes_gamepad_config {
+	uint32_t polling_interval_ms;
+	struct gpio_dt_spec latch_spec;
+	struct gpio_dt_spec data_spec;
+	struct gpio_dt_spec clock_spec;
 };
 
-struct gpio_keys_pin_data {
+struct snes_gamepad_data {
 	const struct device *dev;
-	struct gpio_keys_callback cb_data;
 	struct k_work_delayable work;
-};
+	k_timepoint_t next;
+	uint16_t pin_state;
 
-struct gpio_keys_config {
-	/** Debounce interval in milliseconds from devicetree */
-	uint32_t debounce_interval_ms;
-	const int num_keys;
-	const struct gpio_keys_pin_config *pin_cfg;
-	struct gpio_keys_pin_data *pin_data;
-	k_work_handler_t handler;
-	bool polling_mode;
-	bool no_disconnect;
-};
-
-struct gpio_keys_data {
 #ifdef CONFIG_PM_DEVICE
 	atomic_t suspended;
 #endif
 };
 
-/**
- * Handle debounced gpio pin state.
- */
-static void gpio_keys_poll_pin(const struct device *dev, int key_index)
+static void snes_gamepad_poll(struct k_work *work)
 {
-	const struct gpio_keys_config *cfg = dev->config;
-	const struct gpio_keys_pin_config *pin_cfg = &cfg->pin_cfg[key_index];
-	struct gpio_keys_pin_data *pin_data = &cfg->pin_data[key_index];
-	int new_pressed;
 	int ret;
-
-	ret = gpio_pin_get_dt(&pin_cfg->spec);
-	if (ret < 0) {
-		LOG_ERR("key_index %d get failed: %d", key_index, ret);
-		return;
-	}
-
-	new_pressed = ret;
-	LOG_DBG("%s: pin_state=%d, new_pressed=%d, key_index=%d", dev->name,
-		pin_data->cb_data.pin_state, new_pressed, key_index);
-
-	/* If gpio changed, report the event */
-	if (new_pressed != pin_data->cb_data.pin_state) {
-		pin_data->cb_data.pin_state = new_pressed;
-		LOG_DBG("Report event %s %d, code=%d", dev->name, new_pressed,
-			pin_cfg->zephyr_code);
-		input_report_key(dev, pin_cfg->zephyr_code, new_pressed, true, K_FOREVER);
-	}
-}
-
-static __maybe_unused void gpio_keys_poll_pins(struct k_work *work)
-{
-	struct k_work_delayable *dwork = k_work_delayable_from_work(work);
-	struct gpio_keys_pin_data *pin_data = CONTAINER_OF(dwork, struct gpio_keys_pin_data, work);
-	const struct device *dev = pin_data->dev;
-	const struct gpio_keys_config *cfg = dev->config;
+	uint16_t changed;
+	uint16_t state = 0;
+    struct k_work_delayable *dwork = k_work_delayable_from_work(work);
+    struct snes_gamepad_data *data = CONTAINER_OF(dwork,
+    				struct snes_gamepad_data, work);
+    const struct device *dev = data->dev;
+    const struct snes_gamepad_config *cfg = dev->config;
 
 #ifdef CONFIG_PM_DEVICE
-	struct gpio_keys_data *data = dev->data;
-
-	if (atomic_get(&data->suspended) == 1) {
-		return;
-	}
+    if (unlikely(atomic_get(&data->suspended))) {
+    	return;
+    }
 #endif
 
-	for (int i = 0; i < cfg->num_keys; i++) {
-		gpio_keys_poll_pin(dev, i);
-	}
+    data->next.tick += k_ms_to_ticks_ceil64(cfg->polling_interval_ms);
+    if (sys_timepoint_expired(data->next)) {
+        data->next = sys_timepoint_calc(K_MSEC(cfg->polling_interval_ms));
+    }
+    ret = k_work_reschedule(dwork, sys_timepoint_timeout(data->next));
+    if (unlikely(ret != 1)) {
+    	k_panic();
+    }
 
-	k_work_reschedule(dwork, K_MSEC(cfg->debounce_interval_ms));
+    ret = gpio_pin_set_dt(&cfg->latch_spec, 1);
+    if (unlikely(ret != 0)) {
+    	return;
+    }
+    k_busy_wait(SNES_GAMEPAD_WAIT_US);
+    ret = gpio_pin_set_dt(&cfg->latch_spec, 0);
+    if (unlikely(ret != 0)) {
+    	return;
+    }
+    k_busy_wait(SNES_GAMEPAD_WAIT_US);
+
+    for (uint16_t mask = 0x0001; mask < 0x1000; mask <<= 1) {
+    	ret = gpio_pin_get_dt(&cfg->data_spec);
+    	if (unlikely(ret < 0)) {
+    		return;
+    	}
+		if (ret) {
+		    state |= mask;
+		}
+		ret = gpio_pin_set_dt(&cfg->clock_spec, 1);
+    	if (unlikely(ret != 0)) {
+    		return;
+    	}
+    	k_busy_wait(SNES_GAMEPAD_WAIT_US);
+    	ret = gpio_pin_set_dt(&cfg->clock_spec, 0);
+    	if (unlikely(ret != 0)) {
+    		return;
+    	}
+	   	k_busy_wait(SNES_GAMEPAD_WAIT_US);
+    }
+
+    changed = state ^ data->pin_state;
+    if (!changed) {
+        return;
+    }
+
+    int last = (find_msb_set(changed) - 1);
+    for (int i = 0; i < 12; i++) {
+        if (changed & BIT(i)) {
+            input_report_key(dev, SNES_GAMEPAD_CODES[i], !!(state & BIT(i)),
+					i == last, K_FOREVER);
+        }
+    }
+    data->pin_state = state;
 }
 
-static __maybe_unused void gpio_keys_change_deferred(struct k_work *work)
-{
-	const struct k_work_delayable *dwork = k_work_delayable_from_work(work);
-	const struct gpio_keys_pin_data *pin_data =
-		CONTAINER_OF(dwork, struct gpio_keys_pin_data, work);
-	const struct device *dev = pin_data->dev;
-	const struct gpio_keys_config *cfg = dev->config;
-	const int key_index = pin_data - (struct gpio_keys_pin_data *)cfg->pin_data;
-
-#ifdef CONFIG_PM_DEVICE
-	struct gpio_keys_data *data = dev->data;
-
-	if (atomic_get(&data->suspended) == 1) {
-		return;
-	}
-#endif
-
-	gpio_keys_poll_pin(dev, key_index);
-}
-
-static void gpio_keys_interrupt(const struct device *dev, struct gpio_callback *cbdata,
-				uint32_t pins)
-{
-	struct gpio_keys_callback *keys_cb = CONTAINER_OF(
-			cbdata, struct gpio_keys_callback, gpio_cb);
-	struct gpio_keys_pin_data *pin_data = CONTAINER_OF(
-			keys_cb, struct gpio_keys_pin_data, cb_data);
-	const struct gpio_keys_config *cfg = pin_data->dev->config;
-
-	ARG_UNUSED(dev); /* GPIO device pointer. */
-	ARG_UNUSED(pins);
-
-	k_work_reschedule(&pin_data->work, K_MSEC(cfg->debounce_interval_ms));
-}
-
-static int gpio_keys_interrupt_configure(const struct gpio_dt_spec *gpio_spec,
-					 struct gpio_keys_callback *cb, uint32_t zephyr_code)
+static int snes_gamepad_init(const struct device *dev)
 {
 	int ret;
+    struct snes_gamepad_data *data = dev->data;
+    const struct snes_gamepad_config *cfg = dev->config;
 
-	gpio_init_callback(&cb->gpio_cb, gpio_keys_interrupt, BIT(gpio_spec->pin));
+    data->dev = dev;
+    k_work_init_delayable(&data->work, snes_gamepad_poll);
 
-	ret = gpio_add_callback(gpio_spec->port, &cb->gpio_cb);
-	if (ret < 0) {
-		LOG_ERR("Could not set gpio callback");
-		return ret;
-	}
+    gpio_pin_configure_dt(&cfg->latch_spec, GPIO_OUTPUT_LOW);
+    gpio_pin_configure_dt(&cfg->clock_spec, GPIO_OUTPUT_LOW);
+	gpio_pin_configure_dt(&cfg->data_spec, GPIO_INPUT | GPIO_ACTIVE_LOW);
 
-	cb->pin_state = gpio_pin_get_dt(gpio_spec);
-
-	LOG_DBG("port=%s, pin=%d", gpio_spec->port->name, gpio_spec->pin);
-
-	ret = gpio_pin_interrupt_configure_dt(gpio_spec, GPIO_INT_EDGE_BOTH);
-	if (ret < 0) {
-		LOG_ERR("interrupt configuration failed: %d", ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int gpio_keys_init(const struct device *dev)
-{
-	const struct gpio_keys_config *cfg = dev->config;
-	struct gpio_keys_pin_data *pin_data = cfg->pin_data;
-	int ret;
-
-	for (int i = 0; i < cfg->num_keys; i++) {
-		const struct gpio_dt_spec *gpio = &cfg->pin_cfg[i].spec;
-
-		if (!gpio_is_ready_dt(gpio)) {
-			LOG_ERR("%s is not ready", gpio->port->name);
-			return -ENODEV;
-		}
-
-		ret = gpio_pin_configure_dt(gpio, GPIO_INPUT);
-		if (ret != 0) {
-			LOG_ERR("Pin %d configuration failed: %d", i, ret);
-			return ret;
-		}
-
-		pin_data[i].dev = dev;
-		k_work_init_delayable(&pin_data[i].work, cfg->handler);
-
-		if (cfg->polling_mode) {
-			continue;
-		}
-
-		ret = gpio_keys_interrupt_configure(&cfg->pin_cfg[i].spec,
-						    &pin_data[i].cb_data,
-						    cfg->pin_cfg[i].zephyr_code);
-		if (ret != 0) {
-			LOG_ERR("Pin %d interrupt configuration failed: %d", i, ret);
-			return ret;
-		}
-	}
-
-	if (cfg->polling_mode) {
-		/* use pin 0 work to poll all the pins periodically */
-		k_work_reschedule(&pin_data[0].work, K_MSEC(cfg->debounce_interval_ms));
-	}
-
-	ret = pm_device_runtime_enable(dev);
-	if (ret < 0) {
-		LOG_ERR("Failed to enable runtime power management");
-		return ret;
-	}
-
-	return 0;
+    data->next = sys_timepoint_calc(K_MSEC(cfg->polling_interval_ms));
+    ret = k_work_schedule(&data->work, sys_timepoint_timeout(data->next));
+    if (unlikely(ret != 1)) {
+    	return -1;
+    }
+    return 0;
 }
 
 #ifdef CONFIG_PM_DEVICE
-static int gpio_keys_pm_action(const struct device *dev,
-			       enum pm_device_action action)
+static int snes_gamepad_pm_action(const struct device *dev,
+					enum pm_device_action action)
 {
-	const struct gpio_keys_config *cfg = dev->config;
-	struct gpio_keys_data *data = dev->data;
-	struct gpio_keys_pin_data *pin_data = cfg->pin_data;
 	int ret;
+	const struct snes_gamepad_config *cfg = dev->config;
+	struct snes_gamepad_data *data = dev->data;
 
 	switch (action) {
 	case PM_DEVICE_ACTION_SUSPEND:
 		atomic_set(&data->suspended, 1);
-
-		for (int i = 0; i < cfg->num_keys; i++) {
-			const struct gpio_dt_spec *gpio = &cfg->pin_cfg[i].spec;
-
-			if (!cfg->polling_mode) {
-				ret = gpio_pin_interrupt_configure_dt(gpio, GPIO_INT_DISABLE);
-				if (ret < 0) {
-					LOG_ERR("interrupt configuration failed: %d", ret);
-					return ret;
-				}
-			}
-
-			if (!cfg->no_disconnect) {
-				ret = gpio_pin_configure_dt(gpio, GPIO_DISCONNECTED);
-				if (ret != 0) {
-					LOG_ERR("Pin %d configuration failed: %d", i, ret);
-					return ret;
-				}
-			}
-		}
-
+		(void)k_work_cancel_delayable(&data->work);
 		return 0;
 	case PM_DEVICE_ACTION_RESUME:
 		atomic_set(&data->suspended, 0);
-
-		for (int i = 0; i < cfg->num_keys; i++) {
-			const struct gpio_dt_spec *gpio = &cfg->pin_cfg[i].spec;
-
-			if (!cfg->no_disconnect) {
-				ret = gpio_pin_configure_dt(gpio, GPIO_INPUT);
-				if (ret != 0) {
-					LOG_ERR("Pin %d configuration failed: %d", i, ret);
-					return ret;
-				}
-			}
-
-			if (cfg->polling_mode) {
-				k_work_reschedule(&pin_data[0].work,
-						  K_MSEC(cfg->debounce_interval_ms));
-			} else {
-				pin_data[i].cb_data.pin_state = gpio_pin_get_dt(gpio);
-				ret = gpio_pin_interrupt_configure_dt(gpio, GPIO_INT_EDGE_BOTH);
-				if (ret < 0) {
-					LOG_ERR("interrupt configuration failed: %d", ret);
-					return ret;
-				}
-			}
-		}
-
+	    data->next = sys_timepoint_calc(K_MSEC(cfg->polling_interval_ms));
+	    ret = k_work_schedule(&data->work, sys_timepoint_timeout(data->next));
+	    if (unlikely(ret != 1)) {
+	    	return -1;
+	    }
 		return 0;
 	default:
 		return -ENOTSUP;
@@ -283,42 +173,32 @@ static int gpio_keys_pm_action(const struct device *dev,
 }
 #endif
 
-#define GPIO_KEYS_CFG_CHECK(node_id)                                                               \
-	BUILD_ASSERT(DT_NODE_HAS_PROP(node_id, zephyr_code),                                       \
-		     "zephyr-code must be specified to use the input-gpio-keys driver");
+#define SNES_GAMEPAD_CHECK_FLAGS(i)                                      	\
+	BUILD_ASSERT(DT_INST_GPIO_FLAGS(i, latch_gpios) == 0 &&              	\
+				 DT_INST_GPIO_FLAGS(i, clock_gpios) == 0 &&              	\
+				 DT_INST_GPIO_FLAGS(i, data_gpios) == 0,                 	\
+				 "snes-gamepad driver overrides GPIO flags; set them to 0.");
 
-#define GPIO_KEYS_CFG_DEF(node_id)                                                                 \
-	{                                                                                          \
-		.spec = GPIO_DT_SPEC_GET(node_id, gpios),                                          \
-		.zephyr_code = DT_PROP(node_id, zephyr_code),                                      \
-	}
+#define SNES_GAMEPAD_CHECK_INTERVAL(i)										\
+	BUILD_ASSERT(IN_RANGE(DT_INST_PROP(i, polling_interval_ms), 1, 1000),	\
+	"polling-interval-ms must be between 1 and 1000");
 
-#define GPIO_KEYS_INIT(i)                                                                          \
-	DT_INST_FOREACH_CHILD_STATUS_OKAY(i, GPIO_KEYS_CFG_CHECK);                                 \
-												   \
-	static const struct gpio_keys_pin_config gpio_keys_pin_config_##i[] = {                    \
-		DT_INST_FOREACH_CHILD_STATUS_OKAY_SEP(i, GPIO_KEYS_CFG_DEF, (,))};                 \
-												   \
-	static struct gpio_keys_pin_data                                                           \
-		gpio_keys_pin_data_##i[ARRAY_SIZE(gpio_keys_pin_config_##i)];                      \
-												   \
-	static const struct gpio_keys_config gpio_keys_config_##i = {                              \
-		.debounce_interval_ms = DT_INST_PROP(i, debounce_interval_ms),                     \
-		.num_keys = ARRAY_SIZE(gpio_keys_pin_config_##i),                                  \
-		.pin_cfg = gpio_keys_pin_config_##i,                                               \
-		.pin_data = gpio_keys_pin_data_##i,                                                \
-		.handler = COND_CODE_1(DT_INST_PROP(i, polling_mode),                              \
-				       (gpio_keys_poll_pins), (gpio_keys_change_deferred)),        \
-		.polling_mode = DT_INST_PROP(i, polling_mode),                                     \
-		.no_disconnect = DT_INST_PROP(i, no_disconnect),                                   \
-	};                                                                                         \
-												   \
-	static struct gpio_keys_data gpio_keys_data_##i;                                           \
-												   \
-	PM_DEVICE_DT_INST_DEFINE(i, gpio_keys_pm_action);                                          \
-												   \
-	DEVICE_DT_INST_DEFINE(i, &gpio_keys_init, PM_DEVICE_DT_INST_GET(i),                        \
-			      &gpio_keys_data_##i, &gpio_keys_config_##i,                          \
-			      POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);l
+#define SNES_GAMEPAD_INIT(i)												\
+	SNES_GAMEPAD_CHECK_FLAGS(i)												\
+	SNES_GAMEPAD_CHECK_INTERVAL(i)											\
+	static const struct snes_gamepad_config snes_gamepad_cfg_##i = {        \
+		.polling_interval_ms = DT_INST_PROP(i, polling_interval_ms),		\
+		.latch_spec = GPIO_DT_SPEC_INST_GET(i, latch_gpios),     			\
+		.data_spec = GPIO_DT_SPEC_INST_GET(i, data_gpios),     				\
+		.clock_spec = GPIO_DT_SPEC_INST_GET(i, clock_gpios),     			\
+	};																		\
+																			\
+	static struct snes_gamepad_data snes_gamepad_data_##i;					\
+																			\
+	PM_DEVICE_DT_INST_DEFINE(i, snes_gamepad_pm_action);					\
+																			\
+	DEVICE_DT_INST_DEFINE(i, &snes_gamepad_init, PM_DEVICE_DT_INST_GET(i),  \
+			      &snes_gamepad_data_##i, &snes_gamepad_cfg_##i,            \
+			      POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
 
-DT_INST_FOREACH_STATUS_OKAY(GPIO_KEYS_INIT)
+DT_INST_FOREACH_STATUS_OKAY(SNES_GAMEPAD_INIT)
