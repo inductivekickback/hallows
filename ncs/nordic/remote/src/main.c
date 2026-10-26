@@ -17,6 +17,7 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/led.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/input/input.h>
 
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/hci.h>
@@ -46,6 +47,9 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 static const struct led_dt_spec led_r_lw = LED_DT_SPEC_GET(DT_NODELABEL(led0));
 static const struct led_dt_spec led_g_lw = LED_DT_SPEC_GET(DT_NODELABEL(led1));
 static const struct led_dt_spec led_b_lw = LED_DT_SPEC_GET(DT_NODELABEL(led2));
+
+static const
+struct device *const gamepad = DEVICE_DT_GET(DT_NODELABEL(snes_gamepad));
 
 #define NUMBER_OF_LEDS 3
 #define RED_LED DT_GPIO_PIN(DT_NODELABEL(led0), gpios)
@@ -406,56 +410,29 @@ static void button_changed(uint32_t button_state, uint32_t has_changed)
     }
 }
 
-
-enum sx1509b_color { sx1509b_red = 0, sx1509b_green, sx1509b_blue };
-
-static struct k_work_delayable rgb_work;
-static uint8_t which_color = sx1509b_red;
-static uint8_t iterator;
-
-static void rgb_work_handler(struct k_work *work)
+static void gamepad_cb(struct input_event *evt, void *user_data)
 {
-    if (which_color == sx1509b_red) {
-        sx1509b_led_intensity_pin_set(sx1509b_dev, RED_LED, iterator);
-
-        iterator++;
-
-        if (iterator >= 255) {
-            sx1509b_led_intensity_pin_set(sx1509b_dev, RED_LED, 0);
-            which_color = sx1509b_green;
-            iterator = 0;
-        }
-    } else if (which_color == sx1509b_green) {
-        sx1509b_led_intensity_pin_set(sx1509b_dev, GREEN_LED, iterator);
-
-        iterator++;
-
-        if (iterator >= 255) {
-            sx1509b_led_intensity_pin_set(sx1509b_dev, GREEN_LED,
-                              0);
-            which_color = sx1509b_blue;
-            iterator = 0;
-        }
-    } else if (which_color == sx1509b_blue) {
-        sx1509b_led_intensity_pin_set(sx1509b_dev, BLUE_LED, iterator);
-
-        iterator++;
-
-        if (iterator >= 255) {
-            sx1509b_led_intensity_pin_set(sx1509b_dev, BLUE_LED, 0);
-            which_color = sx1509b_red;
-            iterator = 0;
-        }
+    if (evt->type == INPUT_EV_KEY) {
+        LOG_INF("key code=0x%x %s", evt->code, evt->value ? "down" : "up");
     }
 
-    k_work_schedule(k_work_delayable_from_work(work), K_MSEC(10));
+    if (evt->sync) {
+        /* the frame is complete: act on the accumulated state here */
+        led_on_dt(&led_b_lw);
+    }
 }
+
+INPUT_CALLBACK_DEFINE(gamepad, gamepad_cb, NULL);
 
 int main(void)
 {
     int err;
 
     if (!device_is_ready(sx1509b_dev)) {
+        return 0;
+    }
+
+    if (!device_is_ready(gamepad)) {
         return 0;
     }
 
@@ -467,9 +444,6 @@ int main(void)
             printk("Error configuring pin for LED intensity\n");
         }
     }
-
-    k_work_init_delayable(&rgb_work, rgb_work_handler);
-    k_work_schedule(&rgb_work, K_NO_WAIT);
 
     err = motion_init(motion_cb);
     if (err) {
