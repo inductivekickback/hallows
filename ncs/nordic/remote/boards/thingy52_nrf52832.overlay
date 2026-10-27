@@ -30,8 +30,8 @@
 	status = "okay";
         compatible = "dmv,snes-gamepad";
         latch-gpios = <&gpio0 2 0>;
-        clock-gpios = <&gpio0 3 0>;
-        data-gpios  = <&gpio0 4 0>;
+        clock-gpios = <&gpio0 4 0>;
+        data-gpios  = <&gpio0 3 0>;
         polling-interval-ms = <10>;
     };
 };

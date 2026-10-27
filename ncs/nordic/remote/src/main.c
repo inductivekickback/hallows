@@ -42,7 +42,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #define CMD_WAIT_MS     1000
 #define CMD_Q_LEN       10
 
-#define SLEEP_TIMER_S   5
+#define SLEEP_TIMER_S   1
 
 static const struct led_dt_spec led_r_lw = LED_DT_SPEC_GET(DT_NODELABEL(led0));
 static const struct led_dt_spec led_g_lw = LED_DT_SPEC_GET(DT_NODELABEL(led1));
@@ -393,22 +393,31 @@ void cmd_thread(void)
     }
 }
 
-//static void button_changed(uint32_t button_state, uint32_t has_changed)
-//{
-//    uint32_t newly_pushed = (has_changed & button_state);
-//    for (uint8_t i=0; i < DK_BTN_COUNT; i++) {
-//        uint32_t mask = (1<<i);
-//        if (newly_pushed & mask) {
-//            uint8_t data = i + '0';
-//            k_msgq_put(&cmd_msgq, &data, K_NO_WAIT);
-//        }
-//    }
-//}
-
 static void gamepad_cb(struct input_event *evt, void *user_data)
 {
     if (evt->type == INPUT_EV_KEY) {
         LOG_INF("key code=0x%x %s", evt->code, evt->value ? "down" : "up");
+        if (evt->value) {
+            uint8_t data;
+            switch (evt->code) {
+            case INPUT_BTN_WEST: /* Y */
+                data = '0';
+                k_msgq_put(&cmd_msgq, &data, K_NO_WAIT);
+                break;
+            case INPUT_BTN_NORTH: /* X */
+                data = '1';
+                k_msgq_put(&cmd_msgq, &data, K_NO_WAIT);
+                break;
+            case INPUT_BTN_SOUTH: /* B */
+                data = '2';
+                k_msgq_put(&cmd_msgq, &data, K_NO_WAIT);
+                break;
+            case INPUT_BTN_EAST: /* A */
+                data = '3';
+                k_msgq_put(&cmd_msgq, &data, K_NO_WAIT);
+                break;
+            }
+        }
     }
 
     if (evt->sync) {
