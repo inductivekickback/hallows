@@ -42,7 +42,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #define CMD_WAIT_MS     1000
 #define CMD_Q_LEN       10
 
-#define SLEEP_TIMER_S   60
+#define SLEEP_TIMER_S   5
 
 static const struct led_dt_spec led_r_lw = LED_DT_SPEC_GET(DT_NODELABEL(led0));
 static const struct led_dt_spec led_g_lw = LED_DT_SPEC_GET(DT_NODELABEL(led1));
@@ -55,12 +55,6 @@ struct device *const gamepad = DEVICE_DT_GET(DT_NODELABEL(snes_gamepad));
 #define RED_LED DT_GPIO_PIN(DT_NODELABEL(led0), gpios)
 #define GREEN_LED DT_GPIO_PIN(DT_NODELABEL(led1), gpios)
 #define BLUE_LED DT_GPIO_PIN(DT_NODELABEL(led2), gpios)
-
-static const gpio_pin_t rgb_pins[] = {
-    RED_LED,
-    GREEN_LED,
-    BLUE_LED,
-};
 
 static const struct device *sx1509b_dev = DEVICE_DT_GET(DT_NODELABEL(sx1509b));
 
@@ -79,7 +73,8 @@ static struct bt_hallows_client hallows_client;
 
 static void enter_sleep(struct k_work *work)
 {
-    led_off_dt(&led_g_lw);    
+    led_off_dt(&led_g_lw);
+    led_off_dt(&led_b_lw);
 }
 
 static void sleep_expiry_function(struct k_timer *timer_id)
@@ -398,17 +393,17 @@ void cmd_thread(void)
     }
 }
 
-static void button_changed(uint32_t button_state, uint32_t has_changed)
-{
-    uint32_t newly_pushed = (has_changed & button_state);
-    for (uint8_t i=0; i < DK_BTN_COUNT; i++) {
-        uint32_t mask = (1<<i);
-        if (newly_pushed & mask) {
-            uint8_t data = i + '0';
-            k_msgq_put(&cmd_msgq, &data, K_NO_WAIT);
-        }
-    }
-}
+//static void button_changed(uint32_t button_state, uint32_t has_changed)
+//{
+//    uint32_t newly_pushed = (has_changed & button_state);
+//    for (uint8_t i=0; i < DK_BTN_COUNT; i++) {
+//        uint32_t mask = (1<<i);
+//        if (newly_pushed & mask) {
+//            uint8_t data = i + '0';
+//            k_msgq_put(&cmd_msgq, &data, K_NO_WAIT);
+//        }
+//    }
+//}
 
 static void gamepad_cb(struct input_event *evt, void *user_data)
 {
@@ -417,8 +412,8 @@ static void gamepad_cb(struct input_event *evt, void *user_data)
     }
 
     if (evt->sync) {
-        /* the frame is complete: act on the accumulated state here */
         led_on_dt(&led_b_lw);
+        k_timer_start(&sleep_timer, K_SECONDS(SLEEP_TIMER_S), K_FOREVER);
     }
 }
 
@@ -429,32 +424,25 @@ int main(void)
     int err;
 
     if (!device_is_ready(sx1509b_dev)) {
-        return 0;
+        return -1;
     }
 
     if (!device_is_ready(gamepad)) {
-        return 0;
-    }
-
-    for (int i = 0; i < NUMBER_OF_LEDS; i++) {
-        err = sx1509b_led_intensity_pin_configure(sx1509b_dev,
-                              rgb_pins[i]);
-
-        if (err) {
-            printk("Error configuring pin for LED intensity\n");
-        }
+        goto ERROR_EXIT;
     }
 
     err = motion_init(motion_cb);
     if (err) {
-        led_on_dt(&led_r_lw);
-        return 0;
+        goto ERROR_EXIT;
     }
+
+    led_on_dt(&led_g_lw);
+    k_timer_start(&sleep_timer, K_SECONDS(SLEEP_TIMER_S), K_FOREVER);
 
     err = bt_enable(NULL);
     if (err) {
         printk("Bluetooth init failed (err %d)\n", err);
-        return 0;
+        goto ERROR_EXIT;
     }
 
     printk("Bluetooth initialized\n");
@@ -466,14 +454,18 @@ int main(void)
     err = hallows_client_init();
     if (err) {
         printk("Failed to init client (err:%d)\n", err);
-        return 0;
+        goto ERROR_EXIT;
     }
 
     scan_init();
     err = scan_start();
     if (err) {
-        return 0;
+        goto ERROR_EXIT;
     }
+    return 0;
+ERROR_EXIT:
+    led_on_dt(&led_r_lw);
+    return -1;
 }
 
 K_THREAD_DEFINE(cmd_thread_id, 1024, cmd_thread, NULL, NULL, NULL, -1, 0, 0);

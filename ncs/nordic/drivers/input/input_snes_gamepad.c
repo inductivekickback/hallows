@@ -134,9 +134,18 @@ static int snes_gamepad_init(const struct device *dev)
     data->dev = dev;
     k_work_init_delayable(&data->work, snes_gamepad_poll);
 
-    gpio_pin_configure_dt(&cfg->latch_spec, GPIO_OUTPUT_LOW);
-    gpio_pin_configure_dt(&cfg->clock_spec, GPIO_OUTPUT_LOW);
-	gpio_pin_configure_dt(&cfg->data_spec, GPIO_INPUT | GPIO_ACTIVE_LOW);
+    ret = gpio_pin_configure_dt(&cfg->latch_spec, GPIO_OUTPUT_LOW);
+    if (ret) {
+    	return -1;
+    }
+    ret = gpio_pin_configure_dt(&cfg->clock_spec, GPIO_OUTPUT_LOW);
+	if (ret) {
+		return -1;
+	}
+	ret = gpio_pin_configure_dt(&cfg->data_spec, GPIO_INPUT | GPIO_ACTIVE_LOW);
+	if (ret) {
+		return -1;
+	}
 
     data->next = sys_timepoint_calc(K_MSEC(cfg->polling_interval_ms));
     ret = k_work_schedule(&data->work, sys_timepoint_timeout(data->next));
