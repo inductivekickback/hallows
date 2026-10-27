@@ -428,6 +428,16 @@ static void gamepad_cb(struct input_event *evt, void *user_data)
 
 INPUT_CALLBACK_DEFINE(gamepad, gamepad_cb, NULL);
 
+static void err_flash(void)
+{
+    while (1) {
+        led_on_dt(&led_r_lw);
+        k_sleep(K_MSEC(200));
+        led_off_dt(&led_r_lw);
+        k_sleep(K_MSEC(100));
+    }
+}
+
 int main(void)
 {
     int err;
@@ -473,8 +483,7 @@ int main(void)
     }
     return 0;
 ERROR_EXIT:
-    led_on_dt(&led_r_lw);
-    return -1;
+    err_flash();
 }
 
 K_THREAD_DEFINE(cmd_thread_id, 1024, cmd_thread, NULL, NULL, NULL, -1, 0, 0);
