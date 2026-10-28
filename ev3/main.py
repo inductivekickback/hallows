@@ -47,7 +47,7 @@ DISPENSERS = (
     [0, Motor(Port.A), (360, 89), Button.UP, False, "Starburst"],
     [0, Motor(Port.B), (360, 89), Button.RIGHT, False, "MilkyWay"],
     [0, Motor(Port.C), (5050, 540), Button.DOWN, False, "M&Ms"],
-    [0, None, (300, 450), Button.LEFT, False, "Sour Patch Kids"]
+    [0, Motor(Port.D), (300, 450), Button.LEFT, False, "Sour Patch Kids"]
 )
 
 def _execute_status(immediate):
