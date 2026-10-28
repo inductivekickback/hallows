@@ -18,6 +18,7 @@
 #include <zephyr/drivers/led.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/input/input.h>
+#include <zephyr/pm/device.h>
 
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/hci.h>
@@ -42,7 +43,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #define CMD_WAIT_MS     1000
 #define CMD_Q_LEN       10
 
-#define SLEEP_TIMER_S   1
+#define SLEEP_TIMER_S   10
 
 static const struct led_dt_spec led_r_lw = LED_DT_SPEC_GET(DT_NODELABEL(led0));
 static const struct led_dt_spec led_g_lw = LED_DT_SPEC_GET(DT_NODELABEL(led1));
@@ -58,6 +59,7 @@ struct device *const gamepad = DEVICE_DT_GET(DT_NODELABEL(snes_gamepad));
 
 static const struct device *sx1509b_dev = DEVICE_DT_GET(DT_NODELABEL(sx1509b));
 
+static void err_flash(void);
 static void sleep_expiry_function(struct k_timer *timer_id);
 static void enter_sleep(struct k_work *work);
 
@@ -67,14 +69,33 @@ K_MSGQ_DEFINE(cmd_msgq, sizeof(uint8_t), CMD_Q_LEN, sizeof(uint8_t));
 K_WORK_DEFINE(sleep_work, enter_sleep);
 
 static struct k_work scan_work;
+static bool awake;
+static atomic_t reconnect;
 
 static struct bt_conn *default_conn;
 static struct bt_hallows_client hallows_client;
 
+static int scan_start(void);
+
 static void enter_sleep(struct k_work *work)
 {
-    led_off_dt(&led_g_lw);
-    led_off_dt(&led_b_lw);
+    int ret;
+    atomic_set(&reconnect, 0);
+    awake = false;
+
+    ret = pm_device_action_run(gamepad, PM_DEVICE_ACTION_SUSPEND);
+    if (ret) {
+        err_flash();
+    }
+
+    if (default_conn) {
+        ret = bt_conn_disconnect(default_conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
+        if (ret) {
+            err_flash();
+    }
+}
+
+    led_off_dt(&led_r_lw);
 }
 
 static void sleep_expiry_function(struct k_timer *timer_id)
@@ -84,7 +105,26 @@ static void sleep_expiry_function(struct k_timer *timer_id)
 
 static void motion_cb(const struct device *dev, const struct sensor_trigger *trig)
 {
-    led_on_dt(&led_g_lw);
+    int ret;
+
+    if (awake) {
+        k_timer_start(&sleep_timer, K_SECONDS(SLEEP_TIMER_S), K_FOREVER);
+        return;
+    }
+
+    atomic_set(&reconnect, 1);
+    ret = scan_start();
+    if (ret) {
+        err_flash();
+    }
+
+    ret = pm_device_action_run(gamepad, PM_DEVICE_ACTION_RESUME);
+    if (ret) {
+        err_flash();
+    }
+
+    awake = true;
+    led_on_dt(&led_r_lw);
     k_timer_start(&sleep_timer, K_SECONDS(SLEEP_TIMER_S), K_FOREVER);
 }
 
@@ -182,7 +222,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
     char addr[BT_ADDR_LE_STR_LEN];
 
-    //led_off_dt(&led_b_ant);
+    led_off_dt(&led_b_lw);
 
     bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
@@ -195,7 +235,9 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
     bt_conn_unref(default_conn);
     default_conn = NULL;
 
-    (void)k_work_submit(&scan_work);
+    if (atomic_get(&reconnect)) {
+        (void)k_work_submit(&scan_work);
+    }
 }
 
 BT_CONN_CB_DEFINE(conn_callbacks) = {
@@ -277,6 +319,10 @@ static int scan_start(void)
         return err;
     }
 
+    if (!atomic_get(&reconnect)) {
+        return 0;
+    }
+
     bt_scan_filter_remove_all();
 
     err = bt_scan_filter_add(BT_SCAN_FILTER_TYPE_UUID, BT_UUID_HALLOWS);
@@ -329,31 +375,9 @@ void cmd_thread(void)
     uint8_t msg;
     for(;;) {
         k_msgq_get(&cmd_msgq, &msg, K_FOREVER);
-        //led_off_dt(&led_b_ant);
-        //led_off_dt(&led_r_ant);
-        switch(msg) {
-        case '0':
-            //led_on_dt(&led_r_box);
-            //led_on_dt(&led_r_ant);
-            break;
-        case '1':
-            //led_on_dt(&led_g_box);
-            //led_on_dt(&led_g_ant);
-            break;
-        case '2':
-            //led_on_dt(&led_b_box);
-            //led_on_dt(&led_b_ant);
-            break;
-        case '3':
-            //led_on_dt(&led_r_box);
-            //led_on_dt(&led_g_box);
-            //led_on_dt(&led_b_box);
-            //led_on_dt(&led_r_ant);
-            //led_on_dt(&led_g_ant);
-            //led_on_dt(&led_b_ant);
-            break;
-        };
-
+        led_off_dt(&led_r_lw);
+        led_off_dt(&led_b_lw);
+        led_on_dt(&led_g_lw);
         if (default_conn == NULL) {
             printk("Not connected.\n");
         } else {
@@ -362,34 +386,10 @@ void cmd_thread(void)
                 printk("bt_hallows_send failed: %d\n", err);
             }
         }
-
         k_sleep(K_MSEC(CMD_WAIT_MS));
-        switch(msg) {
-        case '0':
-            //led_off_dt(&led_r_box);
-            //led_off_dt(&led_r_ant);
-            break;
-        case '1':
-            //led_off_dt(&led_g_box);
-            //led_off_dt(&led_g_ant);
-            break;
-        case '2':
-            //led_off_dt(&led_b_box);
-            //led_off_dt(&led_b_ant);
-            break;
-        case '3':
-            //led_off_dt(&led_r_box);
-            //led_off_dt(&led_g_box);
-            //led_off_dt(&led_b_box);
-            //led_off_dt(&led_r_ant);
-            //led_off_dt(&led_g_ant);
-            //led_off_dt(&led_b_ant);
-            break;
-        };
-        if (default_conn != NULL) {
-            //led_on_dt(&led_b_ant);
-        }
-        //led_on_dt(&led_r_ant);
+        led_off_dt(&led_g_lw);
+        led_on_dt(&led_r_lw);
+        led_on_dt(&led_b_lw);
     }
 }
 
@@ -421,7 +421,6 @@ static void gamepad_cb(struct input_event *evt, void *user_data)
     }
 
     if (evt->sync) {
-        led_on_dt(&led_b_lw);
         k_timer_start(&sleep_timer, K_SECONDS(SLEEP_TIMER_S), K_FOREVER);
     }
 }
@@ -455,7 +454,8 @@ int main(void)
         goto ERROR_EXIT;
     }
 
-    led_on_dt(&led_g_lw);
+    awake = true;
+    led_on_dt(&led_r_lw);
     k_timer_start(&sleep_timer, K_SECONDS(SLEEP_TIMER_S), K_FOREVER);
 
     err = bt_enable(NULL);
@@ -477,11 +477,13 @@ int main(void)
     }
 
     scan_init();
+    atomic_set(&reconnect, 1);
     err = scan_start();
     if (err) {
         goto ERROR_EXIT;
     }
     return 0;
+
 ERROR_EXIT:
     err_flash();
 }
