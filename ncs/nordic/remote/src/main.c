@@ -375,21 +375,22 @@ void cmd_thread(void)
     uint8_t msg;
     for(;;) {
         k_msgq_get(&cmd_msgq, &msg, K_FOREVER);
-        led_off_dt(&led_r_lw);
-        led_off_dt(&led_b_lw);
-        led_on_dt(&led_g_lw);
         if (default_conn == NULL) {
             printk("Not connected.\n");
         } else {
+            led_off_dt(&led_r_lw);
+            led_off_dt(&led_b_lw);
+            led_on_dt(&led_g_lw);
             int err = bt_hallows_send(&hallows_client, &msg, sizeof(msg));
             if (err) {
                 printk("bt_hallows_send failed: %d\n", err);
+            } else {
+                k_sleep(K_MSEC(CMD_WAIT_MS));                
             }
+            led_off_dt(&led_g_lw);
+            led_on_dt(&led_r_lw);
+            led_on_dt(&led_b_lw);
         }
-        k_sleep(K_MSEC(CMD_WAIT_MS));
-        led_off_dt(&led_g_lw);
-        led_on_dt(&led_r_lw);
-        led_on_dt(&led_b_lw);
     }
 }
 
