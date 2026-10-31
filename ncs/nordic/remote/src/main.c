@@ -43,7 +43,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #define CMD_WAIT_MS     1000
 #define CMD_Q_LEN       10
 
-#define SLEEP_TIMER_S   10
+#define SLEEP_TIMER_S   (60 * 5)
 
 static const struct led_dt_spec led_r_lw = LED_DT_SPEC_GET(DT_NODELABEL(led0));
 static const struct led_dt_spec led_g_lw = LED_DT_SPEC_GET(DT_NODELABEL(led1));
